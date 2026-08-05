@@ -194,10 +194,10 @@ export function CoursePlayer({
     return map
   }, [normalizedModules])
   const resolveLessonAccess = (lesson?: CoursePlayerLessonState | CoursePlayerLesson | null) => {
-    const module = lesson?.module_id ? modulesById.get(lesson.module_id) : null
-    const accessType = module?.access_type ?? "free"
+    const moduleData = lesson?.module_id ? modulesById.get(lesson.module_id) : null
+    const accessType = moduleData?.access_type ?? "free"
     const locked = accessType === "premium" && !canAccessPremium
-    return { module, accessType, locked }
+    return { module: moduleData, accessType, locked }
   }
   const normalizedLessons = useMemo<CoursePlayerLessonState[]>(() => {
     const seenLessonIds = new Set<string>()

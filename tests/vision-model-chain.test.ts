@@ -52,7 +52,7 @@ describe("callWithFallback", () => {
       calls.push(modelId)
       if (modelId === KIMI) throw e
       return { ok: true, model: modelId }
-    })
+    }, { maxRetriesPerModel: 1 })
     assert.deepEqual(calls, [KIMI, GLM])
     assert.deepEqual(result, { ok: true, model: GLM })
   })

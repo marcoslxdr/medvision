@@ -49,7 +49,7 @@ export function ResearchContent({ research }: ResearchContentProps) {
                     <div className="flex gap-4">
                         <Quote className="w-8 h-8 text-slate-700/50 flex-shrink-0 fill-current" />
                         <p className="text-xl md:text-2xl text-slate-200 font-light leading-relaxed italic">
-                            "{research.query}"
+                            &ldquo;{research.query}&rdquo;
                         </p>
                     </div>
                 </div>

@@ -78,7 +78,7 @@ export function SummaryPreview({ topic, depth, format }: SummaryPreviewProps) {
                 <div className="w-2 h-2 rounded-full bg-primary/60" />
                 <div
                   className="h-3 rounded-full bg-muted/50"
-                  style={{ width: `${60 + Math.random() * 30}%` }}
+                  style={{ width: `${60 + (i % 3) * 10}%` }}
                 />
               </motion.div>
             ))}

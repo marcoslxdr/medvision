@@ -22,6 +22,30 @@ interface NotificationHistoryProps {
   logs: NotificationLog[]
 }
 
+function FilterPill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+        active
+          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-100 shadow"
+          : "border-slate-700 text-slate-300 hover:border-emerald-500/40 hover:text-emerald-100"
+      )}
+    >
+      {label}
+    </button>
+  )
+}
+
 export function NotificationHistory({ logs }: NotificationHistoryProps) {
   const [statusFilter, setStatusFilter] = useState<"all" | "sent" | "failed" | "pending">("all")
   const [channelFilter, setChannelFilter] = useState<"all" | "whatsapp" | "email">("all")
@@ -63,30 +87,6 @@ export function NotificationHistory({ logs }: NotificationHistoryProps) {
       return statusMatch && channelMatch && matchesSearch
     })
   }, [channelFilter, logs, searchTerm, statusFilter])
-
-  function FilterPill({
-    label,
-    active,
-    onClick,
-  }: {
-    label: string
-    active: boolean
-    onClick: () => void
-  }) {
-    return (
-      <button
-        onClick={onClick}
-        className={cn(
-          "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-          active
-            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-100 shadow"
-            : "border-slate-700 text-slate-300 hover:border-emerald-500/40 hover:text-emerald-100"
-        )}
-      >
-        {label}
-      </button>
-    )
-  }
 
   return (
     <Card className="bg-slate-900 border-slate-800">

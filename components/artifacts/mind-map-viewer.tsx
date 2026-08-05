@@ -44,11 +44,12 @@ export function MindMapViewer({ data, title }: MindMapViewerProps) {
     const { initialNodes, initialEdges } = useMemo(() => {
         const nodes: Node[] = []
         const edges: Edge[] = []
+        let nodeSeq = 0
 
         if (!data || !data.root) return { initialNodes: [], initialEdges: [] }
 
         const traverse = (node: MindMapNode, parentId?: string, x = 0, y = 0, level = 0) => {
-            const id = node.id || `node-${Math.random().toString(36).substr(2, 9)}`
+            const id = node.id || `node-${++nodeSeq}`
 
             // Calculate position (simple layout)
             const nodeX = x

@@ -208,7 +208,10 @@ export function UsersManager({ users, adminName }: UsersManagerProps) {
     })
   }, [users, searchQuery, roleFilter, subscriptionFilter, trialFilter])
 
-  useEffect(() => {
+  // Remove seleções que não estão mais filtradas (ajuste de estado durante o render)
+  const [prevFilteredUsers, setPrevFilteredUsers] = useState(filteredUsers)
+  if (prevFilteredUsers !== filteredUsers) {
+    setPrevFilteredUsers(filteredUsers)
     const filteredIds = new Set(filteredUsers.map((user) => user.id))
     setSelectedUsers((prev) => {
       const next = prev.filter((id) => filteredIds.has(id))
@@ -217,7 +220,7 @@ export function UsersManager({ users, adminName }: UsersManagerProps) {
       }
       return next
     })
-  }, [filteredUsers])
+  }
 
   // Estatísticas
   const stats = useMemo(() => {

@@ -10,7 +10,7 @@ import { callWithFallback } from '@/lib/vision/model-fallback'
 import {
     elapseMs,
     imagePayloadStats,
-    getStructuredVisionOutputFromEnv as useStructuredVisionOutputFromEnv,
+    getStructuredVisionOutputFromEnv as structuredVisionOutputFromEnv,
     visionInfo,
     visionWarn,
 } from '@/lib/vision/vision-log'
@@ -186,8 +186,8 @@ function normalizeQuickDetectionPayload(payload: unknown): unknown {
     return { ...(payload as Record<string, unknown>), quickDetections: normalized }
 }
 
-function useStructuredVisionOutput(): boolean {
-    return useStructuredVisionOutputFromEnv()
+function structuredVisionOutputEnabled(): boolean {
+    return structuredVisionOutputFromEnv()
 }
 
 /** Tentativa de parse com múltiplas heurísticas para lidar com respostas mal formatadas. */
@@ -231,7 +231,7 @@ async function tryGenerateObject<T>(
     userContent: ReturnType<typeof buildUserContent>,
     phase: string,
 ): Promise<T | null> {
-    if (!useStructuredVisionOutput()) {
+    if (!structuredVisionOutputEnabled()) {
         visionInfo('skip_structured', { phase, reason: 'MEDVISION_STRUCTURED_OUTPUT=0' })
         return null
     }
@@ -668,7 +668,7 @@ export async function callTwoStageVisionAnalysis(
         ...img,
         modelChain: models.join(' → '),
         ...contextLogFields(userContext, clinicalContext),
-        structuredOutput: useStructuredVisionOutput(),
+        structuredOutput: structuredVisionOutputEnabled(),
     })
 
     visionInfo('two_stage.stage1', { step: 'quick_detection' })

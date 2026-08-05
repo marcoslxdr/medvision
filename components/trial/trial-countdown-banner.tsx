@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useIsClient } from "@/lib/hooks/use-mobile"
 import { getRemainingTrialDays, isTrialActive } from "@/lib/trial"
 import { Crown, AlertTriangle, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -13,11 +13,7 @@ interface TrialCountdownBannerProps {
 }
 
 export function TrialCountdownBanner({ trialEndsAt, planType }: TrialCountdownBannerProps) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useIsClient()
 
   if (!mounted) return null
   

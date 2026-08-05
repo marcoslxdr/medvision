@@ -43,7 +43,7 @@ export function VisionArtifact({ artifact, className }: VisionArtifactProps) {
   const { analysis, imageBase64, imageUrl, thumbnailBase64, analyzedAt, refinements = [] } = artifact
   const fullImageSrc = imageUrl || imageBase64 || thumbnailBase64 || ''
 
-  const reportId = artifact.id?.slice(0, 8).toUpperCase() || Math.random().toString(36).slice(2, 8).toUpperCase()
+  const [reportId] = useState(() => artifact.id?.slice(0, 8).toUpperCase() || Math.random().toString(36).slice(2, 8).toUpperCase())
   const formattedDate = new Date(analyzedAt).toLocaleDateString('pt-BR', {
     day: '2-digit',
     month: '2-digit',

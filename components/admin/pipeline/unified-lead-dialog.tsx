@@ -500,7 +500,7 @@ export function UnifiedLeadDialog({
                                         <p className="font-medium text-sm">{event.description}</p>
                                         {event.metadata?.note && (
                                           <p className="text-sm text-muted-foreground mt-1">
-                                            "{event.metadata.note}"
+                                            &ldquo;{event.metadata.note}&rdquo;
                                           </p>
                                         )}
                                         {event.metadata?.creator && (

@@ -9,10 +9,18 @@ export function AgentDemoVision() {
     const ref = useRef<HTMLDivElement>(null)
     const isInView = useInView(ref, { once: false, amount: 0.4 })
     const [stage, setStage] = useState(0)
+    const [prevInView, setPrevInView] = useState(isInView)
+
+    // Ajusta o estado durante o render quando isInView muda (padrão React)
+    if (prevInView !== isInView) {
+        setPrevInView(isInView)
+        if (!isInView) {
+            setStage(0)
+        }
+    }
 
     useEffect(() => {
         if (!isInView) {
-            setStage(0)
             return
         }
 

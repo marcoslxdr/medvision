@@ -45,28 +45,6 @@ export function AnnotationCanvas({
     // Get color from annotation
     const getColor = (color: AnnotationColor): string => colorMap[color]
 
-    // Draw all annotations
-    const draw = useCallback(() => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-
-        // Clear canvas
-        ctx.clearRect(0, 0, width, height)
-
-        // Draw all saved annotations
-        for (const annotation of annotations) {
-            drawAnnotation(ctx, annotation)
-        }
-
-        // Draw current annotation being created
-        if (currentAnnotation && isDrawing) {
-            drawAnnotation(ctx, currentAnnotation as VisionAnnotation)
-        }
-    }, [annotations, currentAnnotation, isDrawing, width, height])
-
     // Draw a single annotation
     const drawAnnotation = (ctx: CanvasRenderingContext2D, annotation: VisionAnnotation | Partial<VisionAnnotation>) => {
         const color = getColor(annotation.color || 'red')
@@ -152,6 +130,28 @@ export function AnnotationCanvas({
                 break
         }
     }
+
+    // Draw all annotations
+    const draw = useCallback(() => {
+        const canvas = canvasRef.current
+        if (!canvas) return
+
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height)
+
+        // Draw all saved annotations
+        for (const annotation of annotations) {
+            drawAnnotation(ctx, annotation)
+        }
+
+        // Draw current annotation being created
+        if (currentAnnotation && isDrawing) {
+            drawAnnotation(ctx, currentAnnotation as VisionAnnotation)
+        }
+    }, [annotations, currentAnnotation, isDrawing, width, height])
 
     // Redraw when annotations change
     useEffect(() => {

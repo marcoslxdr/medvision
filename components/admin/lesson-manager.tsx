@@ -413,12 +413,12 @@ export function LessonManager({ courseId, courseTitle, modules, modulesEnabled }
 
       // Se for o mesmo módulo, apenas reordenar
       if (sourceModuleIndex === targetModuleIndex) {
-        const module = localModules[sourceModuleIndex]
-        const newLessons = arrayMove(module.lessons, sourceLessonIndex, module.lessons.length)
+        const moduleData = localModules[sourceModuleIndex]
+        const newLessons = arrayMove(moduleData.lessons, sourceLessonIndex, moduleData.lessons.length)
 
         const updatedModules = [...localModules]
         updatedModules[sourceModuleIndex] = {
-          ...module,
+          ...moduleData,
           lessons: newLessons.map((lesson, index) => ({
             ...lesson,
             order_index: index,
@@ -493,16 +493,16 @@ export function LessonManager({ courseId, courseTitle, modules, modulesEnabled }
 
       if (targetModuleIndex === -1 || targetModuleIndex !== sourceModuleIndex) return
 
-      const module = localModules[sourceModuleIndex]
-      const targetLessonIndex = module.lessons.findIndex((l) => l.id === targetLessonId)
+      const moduleData = localModules[sourceModuleIndex]
+      const targetLessonIndex = moduleData.lessons.findIndex((l) => l.id === targetLessonId)
 
       if (targetLessonIndex === -1) return
 
-      const newLessons = arrayMove(module.lessons, sourceLessonIndex, targetLessonIndex)
+      const newLessons = arrayMove(moduleData.lessons, sourceLessonIndex, targetLessonIndex)
 
       const updatedModules = [...localModules]
       updatedModules[sourceModuleIndex] = {
-        ...module,
+        ...moduleData,
         lessons: newLessons.map((lesson, index) => ({
           ...lesson,
           order_index: index,
@@ -515,7 +515,7 @@ export function LessonManager({ courseId, courseTitle, modules, modulesEnabled }
       const result = await moveLessonBetweenModulesAction({
         lesson_id: activeId,
         course_id: courseId,
-        target_module_id: module.id,
+        target_module_id: moduleData.id,
         new_order_index: targetLessonIndex,
       })
 

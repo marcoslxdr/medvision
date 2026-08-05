@@ -18,6 +18,7 @@ import {
 import type { LiveEvent } from "@/lib/dashboard/events"
 import { formatEventLabel } from "@/lib/dashboard/events"
 import { normalizeVideoUrl, isVideoFile } from "@/lib/video/normalize"
+import { useIsClient } from "@/lib/hooks/use-mobile"
 
 interface LivePlayerProps {
   live: LiveEvent
@@ -33,7 +34,7 @@ const formatDuration = (minutes: number) => {
 }
 
 export function LivePlayer({ live }: LivePlayerProps) {
-  const [isClient, setIsClient] = useState(false)
+  const isClient = useIsClient()
   
   const normalizedVideoUrl = normalizeVideoUrl(live.liveUrl)
   
@@ -61,10 +62,6 @@ export function LivePlayer({ live }: LivePlayerProps) {
     const u = normalizedVideoUrl ?? ""
     return u.toLowerCase().includes(".m3u8")
   }, [normalizedVideoUrl])
-
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
 
   useEffect(() => {
     if (!isHlsStream) {

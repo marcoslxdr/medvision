@@ -50,11 +50,12 @@ export function ColumnMappingStep({ sheet, onMappingChange }: ColumnMappingStepP
     ies: "",
   })
 
-  // Auto-detect mapping on mount
-  useEffect(() => {
-    const guessed = guessColumnMapping(sheet.headers)
-    setMapping(prev => ({ ...prev, ...guessed }))
-  }, [sheet])
+  // Auto-detect mapping quando sheet muda (ajuste de estado durante o render)
+  const [prevSheet, setPrevSheet] = useState(sheet)
+  if (prevSheet !== sheet) {
+    setPrevSheet(sheet)
+    setMapping(prev => ({ ...prev, ...guessColumnMapping(sheet.headers) }))
+  }
 
   // Calculate preview and valid count
   const { previewRows, validCount } = useMemo(() => {

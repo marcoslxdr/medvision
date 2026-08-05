@@ -173,10 +173,18 @@ interface ImageScannerProps {
 export function ImageScanner({ children, className = "", scanColor = "cyan" }: ImageScannerProps) {
     const { ref, isInView } = useScrollAnimation(0.5)
     const [isScanning, setIsScanning] = useState(false)
+    const [prevInView, setPrevInView] = useState(isInView)
+
+    // Ajusta o estado durante o render quando isInView muda (padrão React)
+    if (prevInView !== isInView) {
+        setPrevInView(isInView)
+        if (isInView) {
+            setIsScanning(true)
+        }
+    }
 
     useEffect(() => {
         if (isInView) {
-            setIsScanning(true)
             const timer = setTimeout(() => setIsScanning(false), 2000)
             return () => clearTimeout(timer)
         }
@@ -238,10 +246,18 @@ interface AnimatedTerminalProps {
 export function AnimatedTerminal({ lines, className = "" }: AnimatedTerminalProps) {
     const { ref, isInView } = useScrollAnimation(0.3)
     const [visibleLines, setVisibleLines] = useState<number>(0)
+    const [prevInView, setPrevInView] = useState(isInView)
+
+    // Ajusta o estado durante o render quando isInView muda (padrão React)
+    if (prevInView !== isInView) {
+        setPrevInView(isInView)
+        if (!isInView) {
+            setVisibleLines(0)
+        }
+    }
 
     useEffect(() => {
         if (!isInView) {
-            setVisibleLines(0)
             return
         }
 

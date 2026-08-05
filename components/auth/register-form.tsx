@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, Sparkles, ArrowRight } from "lucide-react"
 
@@ -56,14 +56,16 @@ export function RegisterForm({ trialDays = DEFAULT_TRIAL_DAYS }: RegisterFormPro
   const selectedPlan = planParam && PLAN_CHECKOUT_MAP[planParam] ? PLAN_CHECKOUT_MAP[planParam] : null
   const isCheckoutFlow = !!selectedPlan
 
-  // Pré-preencher campos com dados da landing page
-  useEffect(() => {
+  // Pré-preencher campos com dados da landing page (ajuste de estado durante o render)
+  const [prevParams, setPrevParams] = useState(searchParams)
+  if (prevParams !== searchParams) {
+    setPrevParams(searchParams)
     const emailParam = searchParams.get('email')
     const whatsappParam = searchParams.get('whatsapp')
 
     if (emailParam) setEmail(emailParam)
     if (whatsappParam) setWhatsapp(whatsappParam)
-  }, [searchParams])
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

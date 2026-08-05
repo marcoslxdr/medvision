@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Copy, Link2, ShieldCheck, Sparkles } from "lucide-react"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -29,13 +29,10 @@ const baseEnvUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "")
 
 export function TrialFormsManager() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [origin, setOrigin] = useState<string>("")
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setOrigin(window.location.origin)
-    }
-  }, [])
+  const [origin] = useState<string>(() => {
+    if (typeof window === "undefined") return ""
+    return window.location.origin
+  })
 
   const baseUrl = origin || baseEnvUrl
 

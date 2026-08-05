@@ -10,11 +10,19 @@ export function AgentDemoPractice() {
     const isInView = useInView(ref, { once: false, amount: 0.4 })
     const [stage, setStage] = useState(0)
     const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
+    const [prevInView, setPrevInView] = useState(isInView)
 
-    useEffect(() => {
+    // Ajusta o estado durante o render quando isInView muda (padrão React)
+    if (prevInView !== isInView) {
+        setPrevInView(isInView)
         if (!isInView) {
             setStage(0)
             setSelectedAnswer(null)
+        }
+    }
+
+    useEffect(() => {
+        if (!isInView) {
             return
         }
 

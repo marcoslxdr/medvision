@@ -4,7 +4,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useSyncExternalStore } from 'react'
 import {
   Layers,
   GitBranch,
@@ -108,22 +108,26 @@ function Td({ children, mono }: { children: React.ReactNode; mono?: boolean }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const subscribeNoop = () => () => {}
+
 export default function DocumentacaoPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return sessionStorage.getItem('docs_authenticated') === 'true'
+  })
+  const isLoading = useSyncExternalStore(
+    subscribeNoop,
+    () => false,
+    () => true
+  )
 
+  // Inicializa proteção quando autenticado
   useEffect(() => {
-    // Verifica se já está autenticado na sessão
-    const authenticated = typeof window !== 'undefined' && sessionStorage.getItem('docs_authenticated') === 'true'
-    setIsAuthenticated(authenticated)
-    setIsLoading(false)
-
-    // Inicializa proteção se autenticado
-    if (authenticated) {
+    if (isAuthenticated) {
       const cleanup = initDocsProtection()
       return cleanup
     }
-  }, [])
+  }, [isAuthenticated])
 
   // Tela de carregamento
   if (isLoading) {
