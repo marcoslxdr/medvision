@@ -15,8 +15,10 @@ import {
     callVisionAI,
     callVisionDetection,
     callVisionRefinement,
+    callVisionSeriesAI,
     mapAnalysisToResponse,
 } from '@/lib/vision/pipeline'
+import { CT_VIDEO_SYSTEM_ADDENDUM, buildCtVideoUserInstruction } from '@/lib/vision/ct-video-prompts'
 import type { VisionAnalysis } from '@/lib/vision/schemas'
 import {
     elapseMs,
@@ -117,6 +119,9 @@ export async function POST(req: Request) {
 
         const {
             image,
+            images: imagesInput,
+            sourceType,
+            videoMeta,
             clinicalContext,
             specialty,
             modality,
@@ -177,35 +182,74 @@ export async function POST(req: Request) {
             reportSections,
         })
 
-        imageData = image
-        if (!image.startsWith('data:') && !image.startsWith('http')) {
-            imageData = `data:image/jpeg;base64,${image}`
-        }
+        // Normaliza série (vídeo TC) ou imagem única
+        let seriesFrames: string[] | null = null
+        let wasCompressed = false
+        if (imagesInput && imagesInput.length > 0) {
+            seriesFrames = []
+            for (const raw of imagesInput.slice(0, 12)) {
+                let frame = raw
+                if (!frame.startsWith('data:') && !frame.startsWith('http')) {
+                    frame = `data:image/jpeg;base64,${frame}`
+                }
+                if (frame.startsWith('data:image/')) {
+                    try {
+                        frame = await normalizeVisionImageDataUrl(frame)
+                    } catch {
+                        /* keep */
+                    }
+                    const st = imagePayloadStats(frame)
+                    if (st.approxBytes > 900 * 1024) {
+                        frame = await compressToMax(frame, 450 * 1024)
+                        wasCompressed = true
+                    }
+                }
+                const check = validateImagePayload(frame)
+                if (!check.valid) {
+                    visionWarn('request.payload_invalid', { requestId, message: check.message })
+                    return new Response(JSON.stringify({ error: check.message }), {
+                        status: 413,
+                        headers: { 'Content-Type': 'application/json' },
+                    })
+                }
+                seriesFrames.push(frame)
+            }
+            imageData = seriesFrames[0]!
+        } else {
+            imageData = image!
+            if (!imageData.startsWith('data:') && !imageData.startsWith('http')) {
+                imageData = `data:image/jpeg;base64,${imageData}`
+            }
 
-        if (imageData.startsWith('data:image/')) {
-            try {
-                imageData = await normalizeVisionImageDataUrl(imageData)
-            } catch {
-                /* mantém original */
+            if (imageData.startsWith('data:image/')) {
+                try {
+                    imageData = await normalizeVisionImageDataUrl(imageData)
+                } catch {
+                    /* mantém original */
+                }
+            }
+
+            const beforeCompressionStats = imagePayloadStats(imageData)
+            if (beforeCompressionStats.approxBytes > 2 * 1024 * 1024) {
+                visionInfo('request.compress_aggressive', { requestId, originalBytes: beforeCompressionStats.approxBytes })
+                imageData = await compressToMax(imageData, 500 * 1024)
+                wasCompressed = true
+            }
+
+            const payloadCheck = validateImagePayload(imageData)
+            if (!payloadCheck.valid) {
+                visionWarn('request.payload_invalid', { requestId, message: payloadCheck.message })
+                return new Response(JSON.stringify({ error: payloadCheck.message }), {
+                    status: 413,
+                    headers: { 'Content-Type': 'application/json' },
+                })
             }
         }
 
-        const beforeCompressionStats = imagePayloadStats(imageData)
-        let wasCompressed = false
-        if (beforeCompressionStats.approxBytes > 2 * 1024 * 1024) {
-            visionInfo('request.compress_aggressive', { requestId, originalBytes: beforeCompressionStats.approxBytes })
-            imageData = await compressToMax(imageData, 500 * 1024)
-            wasCompressed = true
-        }
-
-        const payloadCheck = validateImagePayload(imageData)
-        if (!payloadCheck.valid) {
-            visionWarn('request.payload_invalid', { requestId, message: payloadCheck.message })
-            return new Response(JSON.stringify({ error: payloadCheck.message }), {
-                status: 413,
-                headers: { 'Content-Type': 'application/json' },
-            })
-        }
+        const isVideoSeries =
+            Boolean(seriesFrames && seriesFrames.length > 1) ||
+            sourceType === 'video' ||
+            (modality === 'tc' && Boolean(seriesFrames && seriesFrames.length > 0))
 
         if (!hasMedVisionOpenCodeGoKey()) {
             visionWarn('config.missing_opencode_go', { requestId })
@@ -330,6 +374,43 @@ export async function POST(req: Request) {
         if (mode === 'refine' && originalAnalysisSummary) {
             visionInfo('request.mode', { requestId, mode: 'refine' })
             analysis = await callVisionRefinement(imageData, originalAnalysisSummary, clinicalContext, modelsToUse, specialtyConfig, userContext)
+        } else if (isVideoSeries && seriesFrames && seriesFrames.length > 0) {
+            visionInfo('request.mode', {
+                requestId,
+                mode: 'ct_video_series',
+                frameCount: seriesFrames.length,
+                sourceType: sourceType ?? null,
+                modality: modality ?? null,
+                durationSec: videoMeta?.durationSec ?? null,
+            })
+            const seriesPrompt = {
+                ...(specialtyConfig || {}),
+                systemPrompt: `${specialtyConfig?.systemPrompt ?? ''}\n\n${CT_VIDEO_SYSTEM_ADDENDUM}`.trim(),
+                fullAnalysisUserInstruction: buildCtVideoUserInstruction({
+                    frameCount: seriesFrames.length,
+                    durationSec: videoMeta?.durationSec,
+                    full: true,
+                }),
+            }
+            analysis = await callVisionSeriesAI(seriesFrames, {
+                clinicalContext,
+                models: modelsToUse,
+                prompts: seriesPrompt as any,
+                userContext,
+                systemAddendum: CT_VIDEO_SYSTEM_ADDENDUM,
+                fullInstruction: buildCtVideoUserInstruction({
+                    frameCount: seriesFrames.length,
+                    durationSec: videoMeta?.durationSec,
+                    full: true,
+                }),
+                timestampsSec: videoMeta?.timestampsSec,
+            })
+            // anota no meta se possível
+            if (analysis?.meta && typeof analysis.meta === 'object') {
+                ;(analysis.meta as any).seriesFrameCount = seriesFrames.length
+                if (sourceType) (analysis.meta as any).sourceType = sourceType
+                if (videoMeta?.durationSec) (analysis.meta as any).videoDurationSec = videoMeta.durationSec
+            }
         } else if (mode === 'quick') {
             visionInfo('request.mode', { requestId, mode: 'quick' })
             analysis = await callVisionAI(imageData, clinicalContext, modelsToUse, specialtyConfig, userContext)

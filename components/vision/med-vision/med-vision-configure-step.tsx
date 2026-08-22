@@ -66,7 +66,7 @@ export function MedVisionConfigureStep({
                     >
                         <MedVisionUploadStep
                             onImagesAccepted={onImageAccepted || (() => {})}
-                            description="Radiografia, tomografia ou foto clínica"
+                            description="Radiografia, tomografia, vídeo TC (MP4) ou foto clínica"
                             maxSizeMB={10}
                             maxFiles={1}
                         />

@@ -8,14 +8,18 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { extractDicomPreview, isDicomFile } from '@/lib/vision/dicom-preview'
+import { extractVideoFrames, isVideoFile } from '@/lib/vision/extract-video-frames'
 
-/** Tipos de imagem aceitos para upload clínico (RX, TC, foto, DICOM). */
+/** Tipos de imagem/vídeo aceitos (RX, TC, foto, DICOM, vídeo de série TC). */
 const DEFAULT_ACCEPTED_TYPES = {
   'image/jpeg': ['.jpg', '.jpeg'],
   'image/png': ['.png'],
   'image/webp': ['.webp'],
   'application/dicom': ['.dcm', '.dicom'],
   'application/octet-stream': ['.dcm', '.dicom'],
+  'video/mp4': ['.mp4', '.m4v'],
+  'video/webm': ['.webm'],
+  'video/quicktime': ['.mov'],
 }
 
 const ACCEPTED_LABELS: Record<string, string> = {
@@ -23,6 +27,9 @@ const ACCEPTED_LABELS: Record<string, string> = {
   'image/png': 'PNG',
   'image/webp': 'WEBP',
   'application/dicom': 'DICOM',
+  'video/mp4': 'MP4',
+  'video/webm': 'WEBM',
+  'video/quicktime': 'MOV',
 }
 
 /** Tipos MIME comuns que devem ser rejeitados com mensagem amigável. */
@@ -38,6 +45,15 @@ export type UploadFile = {
   file: File
   base64: string
   previewUrl: string
+  /** frames extras (vídeo TC) */
+  seriesFrames?: string[]
+  sourceType?: 'image' | 'video' | 'dicom'
+  videoMeta?: {
+    durationSec: number
+    frameCount: number
+    sourceName: string
+    timestampsSec: number[]
+  }
 }
 
 type MedVisionUploadStepProps = {
@@ -45,7 +61,7 @@ type MedVisionUploadStepProps = {
   onImagesAccepted: (files: UploadFile[]) => void
   /** Tipos MIME aceitos. Default: JPEG, PNG, WEBP. */
   acceptedTypes?: Record<string, string[]>
-  /** Tamanho máximo por arquivo em MB. Default: 10. */
+  /** Tamanho máximo por arquivo em MB. Default: 10 (vídeo usa até 80). */
   maxSizeMB?: number
   /** Número máximo de arquivos. Default: 1. */
   maxFiles?: number
@@ -93,10 +109,10 @@ function formatAcceptedLabels(accepted: Record<string, string[]>): string {
 export function MedVisionUploadStep({
   onImagesAccepted,
   acceptedTypes = DEFAULT_ACCEPTED_TYPES,
-  maxSizeMB = 10,
+  maxSizeMB = 80,
   maxFiles = 1,
   className,
-  description = 'Radiografia, tomografia ou foto clínica',
+  description = 'Radiografia, tomografia, vídeo TC (MP4/WEBM) ou foto clínica',
   progress,
   progressLabel,
   isLoading = false,
@@ -172,6 +188,38 @@ export function MedVisionUploadStep({
                 file,
                 base64: preview.previewDataUrl,
                 previewUrl: preview.previewDataUrl,
+                sourceType: 'dicom' as const,
+              }
+            }
+
+            if (isVideoFile(file)) {
+              const maxVideoMb = Math.max(maxSizeMB, 80)
+              if (file.size > maxVideoMb * 1024 * 1024) {
+                throw new Error(`Vídeo muito grande. Máximo: ${maxVideoMb}MB.`)
+              }
+              setDicomNote('Extraindo cortes do vídeo de tomografia…')
+              const extracted = await extractVideoFrames(file, {
+                maxFrames: 8,
+                maxWidth: 896,
+                jpegQuality: 0.82,
+              })
+              const frames = extracted.frames.map((f) => f.dataUrl)
+              setDicomNote(
+                `Vídeo TC: ${extracted.frames.length} cortes amostrados (~${extracted.durationSec.toFixed(1)}s).`,
+              )
+              return {
+                id: uid(),
+                file,
+                base64: frames[0]!,
+                previewUrl: frames[0]!,
+                seriesFrames: frames,
+                sourceType: 'video' as const,
+                videoMeta: {
+                  durationSec: extracted.durationSec,
+                  frameCount: frames.length,
+                  sourceName: extracted.sourceName,
+                  timestampsSec: extracted.frames.map((f) => f.timeSec),
+                },
               }
             }
 
@@ -181,6 +229,7 @@ export function MedVisionUploadStep({
               file,
               base64,
               previewUrl: URL.createObjectURL(file),
+              sourceType: 'image' as const,
             }
           }),
         )

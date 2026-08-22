@@ -85,6 +85,14 @@ export default function MedVisionPage() {
     const [state, setState] = useState<VisionState>('CONFIGURE')
     const [image, setImage] = useState<string | null>(null)
     const [originalImage, setOriginalImage] = useState<string | null>(null)
+    const [seriesFrames, setSeriesFrames] = useState<string[] | null>(null)
+    const [videoMeta, setVideoMeta] = useState<{
+        durationSec: number
+        frameCount: number
+        sourceName: string
+        timestampsSec: number[]
+    } | null>(null)
+    const [sourceType, setSourceType] = useState<'image' | 'video' | 'dicom' | null>(null)
     const [progress, setProgress] = useState(0)
     const [analysisResult, setAnalysisResult] = useState<VisionAnalysisResult | null>(null)
     const [analysisPrecision, setAnalysisPrecision] = useState<number | null>(null)
@@ -268,6 +276,26 @@ export default function MedVisionPage() {
         const uploadFile = uploadedFiles[0]
         if (uploadFile) {
             try {
+                const isVideo = uploadFile.sourceType === 'video' && (uploadFile.seriesFrames?.length ?? 0) > 0
+                if (isVideo) {
+                    const frames = uploadFile.seriesFrames!
+                    setSeriesFrames(frames)
+                    setVideoMeta(uploadFile.videoMeta ?? null)
+                    setSourceType('video')
+                    setOriginalImage(frames[0]!)
+                    setImage(frames[0]!)
+                    // TC por padrão quando upload é vídeo de série
+                    setConfig((prev) => (prev.modality === 'rx' ? { ...prev, modality: 'tc' } : prev))
+                    const result = await validateImageQuality(frames[0]!)
+                    setQualityResult(result)
+                    toast.success(`Vídeo TC: ${frames.length} cortes prontos para análise`)
+                    setState('CONFIGURE')
+                    return
+                }
+
+                setSeriesFrames(null)
+                setVideoMeta(null)
+                setSourceType(uploadFile.sourceType ?? 'image')
                 const compressed = await compressImageForAnalysis(uploadFile.base64, 1024, 0.85)
                 setOriginalImage(compressed)
                 setImage(compressed)
@@ -276,7 +304,7 @@ export default function MedVisionPage() {
                 setState('CONFIGURE')
             } catch (error) {
                 console.error("Error processing image:", error)
-                toast.error("Erro ao processar imagem. Tente outro arquivo.")
+                toast.error("Erro ao processar imagem/vídeo. Tente outro arquivo.")
                 setState('CONFIGURE')
             }
         }
@@ -287,19 +315,32 @@ export default function MedVisionPage() {
     }, [])
 
     const buildAnalysisBody = useCallback(
-        (imageData: string, extra?: Record<string, unknown>) => ({
-            image: imageData,
-            specialty: config.specialty,
-            clinicalContext: config.clinicalContext.trim() || undefined,
-            modality: config.modality,
-            reportDepth: config.reportDepth,
-            focusTags: config.focusTags.length ? config.focusTags : undefined,
-            patientAge: config.patientAge,
-            patientSex: config.patientSex,
-            reportSections: config.reportSections,
-            ...extra,
-        }),
-        [config],
+        (imageData: string, extra?: Record<string, unknown>) => {
+            const useSeries = Boolean(seriesFrames && seriesFrames.length > 1)
+            return {
+                image: imageData,
+                ...(useSeries
+                    ? {
+                          images: seriesFrames!,
+                          sourceType: sourceType ?? 'video',
+                          videoMeta: videoMeta ?? undefined,
+                          modality: config.modality === 'rx' ? 'tc' : config.modality,
+                      }
+                    : {
+                          sourceType: sourceType ?? 'image',
+                      }),
+                specialty: config.specialty,
+                clinicalContext: config.clinicalContext.trim() || undefined,
+                modality: useSeries && config.modality === 'rx' ? 'tc' : config.modality,
+                reportDepth: config.reportDepth,
+                focusTags: config.focusTags.length ? config.focusTags : undefined,
+                patientAge: config.patientAge,
+                patientSex: config.patientSex,
+                reportSections: config.reportSections,
+                ...extra,
+            }
+        },
+        [config, seriesFrames, sourceType, videoMeta],
     )
 
     const startSingleAnalysis = async (imageData: string) => {
@@ -510,7 +551,7 @@ export default function MedVisionPage() {
                     </h1>
                 </div>
                 <p className="max-w-2xl text-xs text-ink-muted md:text-base">
-                    Envie radiografias ou tomografias, revise achados e exporte o laudo.
+                    Envie radiografias, tomografias ou vídeo de série TC, revise achados e exporte o laudo.
                 </p>
             </header>
 

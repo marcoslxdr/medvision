@@ -41,6 +41,8 @@
     "lib/vision/json-utils.ts",
     "lib/constants/vision-specialties.ts",
     "lib/constants/vision-specialties/**/*.ts",
-    "lib/vision/schemas.ts"
+    "lib/vision/schemas.ts",
+    "lib/vision/ct-video-prompts.ts",
+    "tests/ct-video-series.test.ts"
   ]
 }

@@ -94,6 +94,28 @@ function buildUserContent(imageData: string, textParts: { type: 'text'; text: st
     return [{ type: 'image' as const, image: imageData }, ...textParts]
 }
 
+type SeriesFrameInput = { dataUrl: string; label?: string }
+
+/** Conteúdo multi-corte: rótulo + imagem por frame, depois instruções. */
+function buildSeriesUserContent(
+    frames: SeriesFrameInput[],
+    textParts: { type: 'text'; text: string }[],
+) {
+    const parts: Array<
+        { type: 'image'; image: string } | { type: 'text'; text: string }
+    > = []
+    for (let i = 0; i < frames.length; i++) {
+        const f = frames[i]!
+        const label =
+            f.label ||
+            `[Corte ${i + 1}/${frames.length}]`
+        parts.push({ type: 'text', text: label })
+        parts.push({ type: 'image', image: f.dataUrl })
+    }
+    parts.push(...textParts)
+    return parts
+}
+
 function contextLogFields(userContext?: string | null, clinicalContext?: string) {
     const trimmedUser = userContext?.trim()
     const safeContext = clinicalContext?.trim() ? sanitizeClinicalContext(clinicalContext) : null
@@ -388,6 +410,139 @@ NÃO inclua markdown, code blocks, ou texto fora do JSON.`
     }
 
     const payloadBytes = imageData.length
+    return callWithFallback(models, generateWithModel, { estimatedPayloadBytes: payloadBytes })
+}
+
+export type VisionSeriesOptions = {
+    clinicalContext?: string
+    models?: readonly string[]
+    prompts?: SpecialtyPrompts
+    userContext?: string | null
+    /** system addendum (ex. CT vídeo) */
+    systemAddendum?: string
+    fullInstruction?: string
+    timestampsSec?: number[]
+}
+
+/**
+ * Análise multi-corte (série TC / frames de vídeo).
+ * Envia todos os frames numa única chamada ao modelo de visão.
+ */
+export async function callVisionSeriesAI(
+    frameDataUrls: string[],
+    options: VisionSeriesOptions = {},
+): Promise<VisionAnalysis> {
+    if (!frameDataUrls.length) {
+        throw new Error('series_empty')
+    }
+    const models = options.models ?? VISION_MODELS
+    const clinicalContext = options.clinicalContext
+    const userContext = options.userContext
+    const prompts = options.prompts
+
+    // Adequação do primeiro frame (representativo)
+    const inadequateCheck = await checkImageAdequacyAsync(frameDataUrls[0]!)
+    if (!inadequateCheck.adequate) {
+        throw new ImageInadequateError(inadequateCheck.reason, inadequateCheck.details)
+    }
+
+    const frames: SeriesFrameInput[] = frameDataUrls.map((dataUrl, i) => {
+        const t = options.timestampsSec?.[i]
+        const tLabel = t != null && Number.isFinite(t) ? ` · t=${Number(t).toFixed(2)}s` : ''
+        return {
+            dataUrl,
+            label: `[Corte ${i + 1}/${frameDataUrls.length}${tLabel}]`,
+        }
+    })
+
+    const baseSystem = prompts?.systemPrompt ?? SYSTEM_PROMPT_BASE
+    const activeSystemPrompt = options.systemAddendum
+        ? `${baseSystem}\n\n${options.systemAddendum}`
+        : baseSystem
+
+    const fullInstruction =
+        options.fullInstruction ||
+        prompts?.fullAnalysisUserInstruction ||
+        `Analise a SÉRIE multi-corte (${frameDataUrls.length} frames). Gere laudo completo no JSON exigido, integrando achados ao longo da série. Responda SOMENTE com o JSON.`
+
+    const generateWithModel = async (modelId: string, signal: AbortSignal): Promise<VisionAnalysis> => {
+        const approxBytes = frameDataUrls.reduce((acc, u) => acc + Math.floor(u.length * 0.75), 0)
+        visionInfo('pipeline.series.start', {
+            modelId,
+            frameCount: frameDataUrls.length,
+            approxBytes,
+            ...contextLogFields(userContext, clinicalContext),
+        })
+
+        const userTextParts: { type: 'text'; text: string }[] = [
+            { type: 'text' as const, text: fullInstruction },
+        ]
+        appendUserContextParts(userTextParts, { userContext, clinicalContext, legacyFormat: 'full' })
+
+        const systemContent = `${activeSystemPrompt}
+
+FORMATO DE RESPOSTA: Responda SOMENTE com JSON válido seguindo este schema exato:
+${JSON_SCHEMA_EXAMPLE}
+
+NÃO inclua markdown, code blocks, ou texto fora do JSON.`
+
+        const userContent = buildSeriesUserContent(frames, userTextParts)
+
+        // structured costuma falhar em multi-image; tenta e cai para texto
+        const structured = await tryGenerateObject(
+            VisionSchema,
+            modelId,
+            signal,
+            8000,
+            systemContent,
+            userContent as any,
+            'series_analysis',
+        )
+        if (structured) {
+            visionInfo('pipeline.series.done', { modelId, path: 'structured', frameCount: frames.length })
+            return structured
+        }
+
+        const tText = performance.now()
+        const result = await generateText({
+            model: opencodeGoMedVision(modelId),
+            abortSignal: signal,
+            maxOutputTokens: 10000,
+            providerOptions: visionProviderOptions(modelId) as any,
+            messages: [
+                { role: 'system' as const, content: systemContent },
+                { role: 'user' as const, content: userContent as any },
+            ],
+        })
+        visionInfo('text_path.ok', {
+            phase: 'series_analysis',
+            modelId,
+            textChars: result.text.length,
+            ms: elapseMs(tText),
+            frameCount: frames.length,
+        })
+        if (!result.text.trim()) throw new Error('empty_response_from_model')
+
+        const parsed = parseWithHeuristics(result.text)
+        if (parsed) {
+            visionInfo('pipeline.series.done', { modelId, path: 'text_fallback', frameCount: frames.length })
+            return VisionSchema.parse(parsed)
+        }
+        try {
+            const extracted = extractJSON(result.text)
+            visionInfo('pipeline.series.done', { modelId, path: 'extract_fallback', frameCount: frames.length })
+            return VisionSchema.parse(extracted)
+        } catch (e) {
+            visionWarn('pipeline.series.parse_failed', {
+                modelId,
+                message: e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200),
+                textPreview: result.text.slice(0, 500),
+            })
+            throw new Error('parse_failed_after_fallbacks')
+        }
+    }
+
+    const payloadBytes = frameDataUrls.reduce((a, u) => a + u.length, 0)
     return callWithFallback(models, generateWithModel, { estimatedPayloadBytes: payloadBytes })
 }
 
