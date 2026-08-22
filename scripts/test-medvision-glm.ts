@@ -30,7 +30,7 @@ async function main() {
         'Imagens de teste/torax-3.png',
     ] as const
 
-    const modelId = MODELS.vision // kimi-k2.6 via OpenCode Go
+    const modelId = MODELS.vision // gpt-5.6-luna (effort max) via OpenCode Go
     console.log('[medvision-glm] modelo:', modelId)
 
     for (const imgPath of images) {

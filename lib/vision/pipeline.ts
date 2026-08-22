@@ -2,7 +2,11 @@ import { generateObject, generateText } from 'ai'
 import * as Sentry from '@sentry/nextjs'
 import type { z } from 'zod'
 import type { ZodType } from 'zod'
-import { opencodeGoMedVision, DEFAULT_VISION_MODEL_CHAIN } from '@/lib/ai/opencode-go'
+import {
+    opencodeGoMedVision,
+    DEFAULT_VISION_MODEL_CHAIN,
+    visionProviderOptions,
+} from '@/lib/ai/opencode-go'
 import type { SpecialtyPrompts } from '@/lib/constants/vision-specialties'
 import { validateAndMergeDetections } from '@/lib/vision/detection-validation'
 import { extractJSON, sanitizeClinicalContext } from '@/lib/vision/json-utils'
@@ -246,6 +250,7 @@ async function tryGenerateObject<T>(
             schema,
             abortSignal: signal,
             maxOutputTokens,
+            providerOptions: visionProviderOptions(modelId) as any,
             messages: [
                 { role: 'system' as const, content: systemContent },
                 { role: 'user' as const, content: userContent },
@@ -333,6 +338,7 @@ NÃO inclua markdown, code blocks, ou texto fora do JSON.`
             model: opencodeGoMedVision(modelId),
             abortSignal: signal,
             maxOutputTokens: 10000,
+            providerOptions: visionProviderOptions(modelId) as any,
             messages: [
                 {
                     role: 'system' as const,
@@ -441,6 +447,7 @@ NÃO inclua markdown, code blocks, ou texto fora do JSON.`
             model: opencodeGoMedVision(modelId),
             abortSignal: signal,
             maxOutputTokens: 4000,
+            providerOptions: visionProviderOptions(modelId) as any,
             messages: [
                 {
                     role: 'system' as const,
@@ -514,6 +521,7 @@ ${QUICK_DETECTION_SCHEMA}`
             model: opencodeGoMedVision(modelId),
             abortSignal: signal,
             maxOutputTokens: 2000,
+            providerOptions: visionProviderOptions(modelId) as any,
             messages: [
                 {
                     role: 'system' as const,
@@ -617,6 +625,7 @@ ${DETAILED_ANALYSIS_SCHEMA}`
             model: opencodeGoMedVision(modelId),
             abortSignal: signal,
             maxOutputTokens: 3500,
+            providerOptions: visionProviderOptions(modelId) as any,
             messages: [
                 {
                     role: 'system' as const,

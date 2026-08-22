@@ -4,7 +4,8 @@
  * API OpenAI-compatible em https://opencode.ai/zen/go/v1
  * Docs: https://opencode.ai/docs/go/
  *
- * Usa createOpenAI + .chat() (Chat Completions), igual ao padrão OpenRouter no projeto.
+ * - GPT-5.6 Luna: Responses API + reasoningEffort max
+ * - Kimi e demais open models: Chat Completions (`.chat()`)
  */
 
 import { createOpenAI } from '@ai-sdk/openai'
@@ -16,8 +17,17 @@ const openCodeGoHeaders = {
   'X-Title': 'MedVision',
 } as const
 
-const medVisionOpenCodeGoKey =
-  process.env.MEDVISION_OPENCODE_API_KEY ?? process.env.OPENCODE_API_KEY
+/** Aceita aliases usados em runtime Hermes / Vercel. */
+function resolveMedVisionOpenCodeGoKey(): string | undefined {
+  return (
+    process.env.MEDVISION_OPENCODE_API_KEY?.trim() ||
+    process.env.OPENCODE_API_KEY?.trim() ||
+    process.env.OPENCODE_GO_API_KEY?.trim() ||
+    undefined
+  )
+}
+
+const medVisionOpenCodeGoKey = resolveMedVisionOpenCodeGoKey()
 
 const opencodeGoMedVisionProvider = createOpenAI({
   name: 'opencode-go-medvision',
@@ -29,28 +39,39 @@ const opencodeGoMedVisionProvider = createOpenAI({
   },
 })
 
-/** Factory de modelo OpenCode Go (Chat Completions). Ex.: opencodeGoMedVision('kimi-k2.6') */
-export const opencodeGoMedVision = (modelId: string) =>
-  opencodeGoMedVisionProvider.chat(modelId)
+/** Modelos que usam Responses API no OpenCode Go (não Chat Completions). */
+const RESPONSES_API_MODEL_IDS = new Set(['gpt-5.6-luna'])
+
+/**
+ * Factory de modelo OpenCode Go.
+ * - `gpt-5.6-luna` → Responses API (endpoint oficial Go)
+ * - demais → Chat Completions
+ */
+export const opencodeGoMedVision = (modelId: string) => {
+  if (RESPONSES_API_MODEL_IDS.has(modelId)) {
+    return opencodeGoMedVisionProvider.responses(modelId)
+  }
+  return opencodeGoMedVisionProvider.chat(modelId)
+}
 
 /** True se a rota de visão tiver chave OpenCode Go disponível. */
 export function hasMedVisionOpenCodeGoKey(): boolean {
-  return Boolean(
-    process.env.MEDVISION_OPENCODE_API_KEY?.trim() ||
-      process.env.OPENCODE_API_KEY?.trim(),
-  )
+  return Boolean(resolveMedVisionOpenCodeGoKey())
 }
 
 /** Modelos de visão via OpenCode Go (multimodal) */
 export const MODELS = {
-  vision: 'kimi-k2.6',
-  visionAlt: 'kimi-k2.7-code',
-  visionFallback: 'kimi-k2.6',
+  /** Primário: ChatGPT GPT-5.6 Luna (effort max no pipeline) */
+  vision: 'gpt-5.6-luna',
+  /** Fallback multimodal open */
+  visionAlt: 'kimi-k2.6',
+  visionFallback: 'kimi-k2.7-code',
 } as const
 
 export type VisionModelId = (typeof MODELS)[keyof typeof MODELS]
 
 export const VISION_MODELS_LIST = [
+  { id: 'gpt-5.6-luna', name: 'ChatGPT GPT-5.6 Luna (max)', provider: 'OpenCode Go' },
   { id: 'kimi-k2.6', name: 'Kimi k2.6', provider: 'OpenCode Go' },
   { id: 'kimi-k2.7-code', name: 'Kimi k2.7 Code', provider: 'OpenCode Go' },
 ] as const
@@ -58,8 +79,27 @@ export const VISION_MODELS_LIST = [
 export type VisionModelInfo = (typeof VISION_MODELS_LIST)[number]
 export const VISION_MODEL_IDS = new Set(VISION_MODELS_LIST.map((m) => m.id))
 
-/** Cadeia padrão Med Vision: Kimi k2.6 com Kimi k2.7 Code como fallback */
+/** Cadeia padrão Med Vision: GPT-5.6 Luna → Kimi k2.6 */
 export const DEFAULT_VISION_MODEL_CHAIN = [MODELS.vision, MODELS.visionAlt] as const
+
+/**
+ * Provider options para análise de imagem.
+ * Luna Max = reasoningEffort: 'max' na Responses API.
+ * forceReasoning: baseURL custom (OpenCode Go) — o SDK trata como reasoning model.
+ */
+export function visionProviderOptions(modelId: string): Record<string, unknown> | undefined {
+  if (modelId === MODELS.vision || modelId === 'gpt-5.6-luna') {
+    return {
+      'opencode-go-medvision': {
+        reasoningEffort: 'max',
+        forceReasoning: true,
+        // laudos clínicos: não precisamos do summary no stream
+        reasoningSummary: null,
+      },
+    }
+  }
+  return undefined
+}
 
 /**
  * Retorna a cadeia de modelos com fallback.

@@ -77,8 +77,9 @@ const response = await fetch('/api/chat', {
 ### Modelo Utilizado
 
 - **Provider:** [OpenCode Go](https://opencode.ai/docs/go/) (`lib/ai/opencode-go.ts`)
-- **Modelo Padrão:** `kimi-k2.6`
-- **Fallback:** `kimi-k2.7-code`
+- **Modelo Padrão:** `gpt-5.6-luna` (ChatGPT Luna, `reasoningEffort: max`)
+- **Fallback:** `kimi-k2.6`
+- **API:** Luna usa Responses API; Kimi usa Chat Completions
 
 ---
 

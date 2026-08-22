@@ -15,8 +15,8 @@ const FIXTURE_JPG = path.join(
   'tests-e2e/fixtures/vision-sample.jpg'
 )
 
-/** Padrão Med Vision; deve coincidir com MODELS.vision (OpenCode Go kimi-k2.6). */
-const DEFAULT_VISION_MODEL = 'kimi-k2.6'
+/** Padrão Med Vision; deve coincidir com MODELS.vision (OpenCode Go gpt-5.6-luna max). */
+const DEFAULT_VISION_MODEL = 'gpt-5.6-luna'
 
 const IMAGENS_DE_TESTE_TORAX = [
   'torax.png',

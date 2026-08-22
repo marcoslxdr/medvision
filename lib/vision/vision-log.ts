@@ -121,6 +121,8 @@ export function logVisionCall(log: VisionCallLog): void {
  * Preços aproximados via OpenCode Go (verificar periodicamente).
  */
 const MODEL_PRICING: Record<string, { inputPerMtok: number; outputPerMtok: number }> = {
+    // OpenCode Go — GPT-5.6 Luna (≤272K context band)
+    'gpt-5.6-luna': { inputPerMtok: 0.2, outputPerMtok: 1.2 },
     'kimi-k2.6': { inputPerMtok: 0.95, outputPerMtok: 4.0 },
     'kimi-k2.7-code': { inputPerMtok: 0.95, outputPerMtok: 4.0 },
 }
