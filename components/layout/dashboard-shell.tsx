@@ -14,6 +14,7 @@
  */
 
 import { MobileFloatingHeader } from '@/components/mobile/mobile-floating-header'
+import { SupportChatWidget } from '@/components/support/support-chat-widget'
 import { useDashboardUser } from '@/lib/contexts/dashboard-user-context'
 import { useIsMobile } from '@/lib/hooks/use-mobile'
 import { usePathname } from 'next/navigation'
@@ -58,6 +59,7 @@ export function DashboardShell({ children, className }: DashboardShellProps) {
       >
         {children}
       </div>
+      <SupportChatWidget />
     </div>
   )
 }
