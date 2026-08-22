@@ -231,7 +231,7 @@ export async function POST(req: Request) {
 
             const beforeCompressionStats = imagePayloadStats(imageData)
             if (beforeCompressionStats.approxBytes > 2 * 1024 * 1024) {
-                visionInfo('request.compress_aggressive', { requestId, originalBytes: beforeCompressionStats.approxBytes })
+                visionInfo('request.compress_aggressive', { requestId, originalBytes: payloadStats.approxBytes })
                 imageData = await compressToMax(imageData, 500 * 1024)
                 wasCompressed = true
             }
@@ -311,7 +311,7 @@ export async function POST(req: Request) {
             hasClinicalContext: hasContext,
             clinicalContextChars: contextChars,
             wasCompressed,
-            originalBytes: beforeCompressionStats.approxBytes,
+            originalBytes: payloadStats.approxBytes,
             dailyUsed: usageCheck.dailyUsed,
             dailyLimit: usageCheck.dailyLimit,
             usagePercent: usagePercent(usageCheck.dailyUsed, usageCheck.dailyLimit),
