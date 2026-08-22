@@ -35,7 +35,19 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data
-  let imageData = data.image
+
+  // Série de vídeo TC: workflow async ainda não multi-frame — cliente cai no path sync.
+  if ((data.images && data.images.length > 1) || data.sourceType === 'video') {
+    return NextResponse.json(
+      { error: 'Video/series analysis uses sync path', code: 'SERIES_SYNC_REQUIRED' },
+      { status: 501 },
+    )
+  }
+
+  let imageData = data.image ?? data.images?.[0]
+  if (!imageData) {
+    return NextResponse.json({ error: 'image required' }, { status: 400 })
+  }
   const before = imageData
   try {
     imageData = await normalizeVisionImageDataUrl(imageData)
