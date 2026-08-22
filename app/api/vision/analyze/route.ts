@@ -2,7 +2,7 @@ import { APICallError } from 'ai'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { trackProductEvent } from '@/lib/ai/analytics'
-import { buildVisionModelChain, hasMedVisionOpenCodeGoKey } from '@/lib/ai/opencode-go'
+import { buildVisionModelChain, hasMedVisionAuth as hasMedVisionOpenCodeGoKey } from '@/lib/ai/vision-model'
 import { deductCredits, hasEnoughCredits } from '@/lib/credits/service'
 import { getSpecialtyConfig } from '@/lib/constants/vision-specialties'
 import { buildVisionUserContext } from '@/lib/vision/build-analysis-context'

@@ -3,10 +3,10 @@ import * as Sentry from '@sentry/nextjs'
 import type { z } from 'zod'
 import type { ZodType } from 'zod'
 import {
-    opencodeGoMedVision,
+    visionModel as opencodeGoMedVision,
     DEFAULT_VISION_MODEL_CHAIN,
     visionProviderOptions,
-} from '@/lib/ai/opencode-go'
+} from '@/lib/ai/vision-model'
 import type { SpecialtyPrompts } from '@/lib/constants/vision-specialties'
 import { validateAndMergeDetections } from '@/lib/vision/detection-validation'
 import { extractJSON, sanitizeClinicalContext } from '@/lib/vision/json-utils'

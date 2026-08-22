@@ -6,7 +6,7 @@ import {
   buildVisionModelChain,
   DEFAULT_VISION_MODEL_CHAIN,
   MODELS,
-} from "../lib/ai/opencode-go"
+} from "../lib/ai/vision-model"
 import { callWithFallback } from "../lib/vision/model-fallback"
 
 const LUNA = MODELS.vision

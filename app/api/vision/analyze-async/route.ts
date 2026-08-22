@@ -1,7 +1,7 @@
 import { start } from 'workflow/api'
 import { NextResponse } from 'next/server'
 
-import { buildVisionModelChain, hasMedVisionOpenCodeGoKey } from '@/lib/ai/opencode-go'
+import { buildVisionModelChain, hasMedVisionAuth as hasMedVisionOpenCodeGoKey } from '@/lib/ai/vision-model'
 import { hasEnoughCredits } from '@/lib/credits/service'
 import { visionAnalysisRequestSchema } from '@/lib/types/vision-analysis-request'
 import { buildVisionUserContext } from '@/lib/vision/build-analysis-context'
